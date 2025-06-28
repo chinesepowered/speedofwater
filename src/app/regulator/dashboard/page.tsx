@@ -308,7 +308,7 @@ export default function RegulatorDashboard() {
             </ResponsiveContainer>
             <div className="flex flex-wrap justify-center gap-4 mt-4">
               {data?.violationsByType.map((type, index) => (
-                <div key={type.type} className="flex items-center">
+                <div key={`${type.type}-${index}`} className="flex items-center">
                   <div
                     className="w-3 h-3 rounded-full mr-2"
                     style={{ backgroundColor: colors[index % colors.length] }}
@@ -434,8 +434,13 @@ export default function RegulatorDashboard() {
                 <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
                 <div>
                   <p className="font-medium text-gray-900">High-Risk Violations</p>
-                  <p className="text-sm text-gray-600">3 systems require immediate attention</p>
-                  <button className="text-sm text-red-600 hover:underline mt-1">Review Details →</button>
+                  <p className="text-sm text-gray-600">{data?.topViolators.filter(s => s.violations > 10).length || 0} systems require immediate attention</p>
+                  <button 
+                    disabled
+                    className="text-sm text-gray-400 mt-1 cursor-not-allowed"
+                  >
+                    Review Details → (Not yet available)
+                  </button>
                 </div>
               </div>
               
@@ -443,17 +448,27 @@ export default function RegulatorDashboard() {
                 <Calendar className="w-5 h-5 text-yellow-600 mt-0.5" />
                 <div>
                   <p className="font-medium text-gray-900">Overdue Reports</p>
-                  <p className="text-sm text-gray-600">12 systems have pending submissions</p>
-                  <button className="text-sm text-yellow-600 hover:underline mt-1">Send Reminders →</button>
+                  <p className="text-sm text-gray-600">Report tracking not yet implemented</p>
+                  <button 
+                    disabled
+                    className="text-sm text-gray-400 mt-1 cursor-not-allowed"
+                  >
+                    Send Reminders → (Not yet available)
+                  </button>
                 </div>
               </div>
               
               <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
                 <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
-                  <p className="font-medium text-gray-900">Monthly Report Due</p>
-                  <p className="text-sm text-gray-600">State compliance report due in 5 days</p>
-                  <button className="text-sm text-blue-600 hover:underline mt-1">Generate Report →</button>
+                  <p className="font-medium text-gray-900">Monthly Report</p>
+                  <p className="text-sm text-gray-600">Report generation not yet implemented</p>
+                  <button 
+                    disabled
+                    className="text-sm text-gray-400 mt-1 cursor-not-allowed"
+                  >
+                    Generate Report → (Not yet available)
+                  </button>
                 </div>
               </div>
             </div>
@@ -469,19 +484,31 @@ export default function RegulatorDashboard() {
             <h3 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h3>
             
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <Download className="w-6 h-6 text-blue-600 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Export Data</span>
+              <button 
+                disabled
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+              >
+                <Download className="w-6 h-6 text-gray-400 mb-2" />
+                <span className="text-sm font-medium text-gray-500">Export Data</span>
+                <span className="text-xs text-gray-400 mt-1">Not yet available</span>
               </button>
               
-              <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <Search className="w-6 h-6 text-green-600 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Search Systems</span>
+              <button 
+                disabled
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+              >
+                <Search className="w-6 h-6 text-gray-400 mb-2" />
+                <span className="text-sm font-medium text-gray-500">Search Systems</span>
+                <span className="text-xs text-gray-400 mt-1">Not yet available</span>
               </button>
               
-              <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <Bell className="w-6 h-6 text-yellow-600 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Set Alerts</span>
+              <button 
+                disabled
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+              >
+                <Bell className="w-6 h-6 text-gray-400 mb-2" />
+                <span className="text-sm font-medium text-gray-500">Set Alerts</span>
+                <span className="text-xs text-gray-400 mt-1">Not yet available</span>
               </button>
               
               <Link
@@ -490,16 +517,25 @@ export default function RegulatorDashboard() {
               >
                 <MapPin className="w-6 h-6 text-purple-600 mb-2" />
                 <span className="text-sm font-medium text-gray-900">View Map</span>
+                <span className="text-xs text-green-600 mt-1">Available</span>
               </Link>
               
-              <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <FileText className="w-6 h-6 text-indigo-600 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Generate Report</span>
+              <button 
+                disabled
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+              >
+                <FileText className="w-6 h-6 text-gray-400 mb-2" />
+                <span className="text-sm font-medium text-gray-500">Generate Report</span>
+                <span className="text-xs text-gray-400 mt-1">Not yet available</span>
               </button>
               
-              <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <Settings className="w-6 h-6 text-gray-600 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Settings</span>
+              <button 
+                disabled
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+              >
+                <Settings className="w-6 h-6 text-gray-400 mb-2" />
+                <span className="text-sm font-medium text-gray-500">Settings</span>
+                <span className="text-xs text-gray-400 mt-1">Not yet available</span>
               </button>
             </div>
           </motion.div>

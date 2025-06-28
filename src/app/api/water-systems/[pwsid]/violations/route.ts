@@ -15,29 +15,75 @@ export async function GET(
       {
         $lookup: {
           from: 'ref_code_values',
-          localField: 'VIOLATION_CODE',
-          foreignField: 'CODE_VALUE',
+          let: { 
+            violationCode: { 
+              $convert: {
+                input: '$VIOLATION_CODE',
+                to: 'int',
+                onError: null,
+                onNull: null
+              }
+            }
+          },
+          pipeline: [
+            { 
+              $match: { 
+                $expr: { 
+                  $and: [
+                    { $ne: ['$$violationCode', null] },
+                    { $eq: ['$VALUE_CODE', '$$violationCode'] },
+                    { $eq: ['$VALUE_TYPE', 'VIOLATION_CODE'] }
+                  ]
+                }
+              }
+            }
+          ],
           as: 'violationDetails'
         }
       },
       {
         $lookup: {
           from: 'ref_code_values',
-          localField: 'CONTAMINANT_CODE',
-          foreignField: 'CODE_VALUE',
+          let: { 
+            contaminantCode: { 
+              $convert: {
+                input: '$CONTAMINANT_CODE',
+                to: 'int',
+                onError: null,
+                onNull: null
+              }
+            }
+          },
+          pipeline: [
+            { 
+              $match: { 
+                $expr: { 
+                  $and: [
+                    { $ne: ['$$contaminantCode', null] },
+                    { $eq: ['$VALUE_CODE', '$$contaminantCode'] },
+                    { $eq: ['$VALUE_TYPE', 'CONTAMINANT_CODE'] }
+                  ]
+                }
+              }
+            }
+          ],
           as: 'contaminantDetails'
         }
       },
       {
-        $unwind: { path: "$violationDetails", preserveNullAndEmptyArrays: true }
-      },
-      {
-        $unwind: { path: "$contaminantDetails", preserveNullAndEmptyArrays: true }
-      },
-      {
         $addFields: {
-          VIOLATION_NAME: '$violationDetails.CODE_DESCRIPTION',
-          CONTAMINANT_NAME: '$contaminantDetails.CODE_DESCRIPTION',
+          VIOLATION_NAME: { 
+            $ifNull: [
+              { $arrayElemAt: ['$violationDetails.VALUE_DESCRIPTION', 0] },
+              'Unknown violation type'
+            ]
+          },
+          CONTAMINANT_NAME: { 
+            $ifNull: [
+              { $arrayElemAt: ['$contaminantDetails.VALUE_DESCRIPTION', 0] },
+              'Unknown contaminant'
+            ]
+          }
         }
       },
       {

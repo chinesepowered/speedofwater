@@ -375,9 +375,12 @@ export default function OperatorDashboard() {
                   {activeViolations.length}
                 </span>
               </div>
-              <button className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+              <button 
+                disabled
+                className="inline-flex items-center px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+              >
                 <Download className="w-4 h-4 mr-2" />
-                Export Report
+                Export Report (Not yet available)
               </button>
             </div>
             
@@ -428,27 +431,36 @@ export default function OperatorDashboard() {
         >
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <FileText className="w-6 h-6 text-blue-600 mr-3" />
+            <button 
+              disabled
+              className="flex items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+            >
+              <FileText className="w-6 h-6 text-gray-400 mr-3" />
               <div className="text-left">
-                <div className="font-medium text-gray-900">Generate Report</div>
-                <div className="text-sm text-gray-500">Monthly compliance report</div>
+                <div className="font-medium text-gray-500">Generate Report</div>
+                <div className="text-sm text-gray-400">Not yet available</div>
               </div>
             </button>
             
-            <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <Bell className="w-6 h-6 text-yellow-600 mr-3" />
+            <button 
+              disabled
+              className="flex items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+            >
+              <Bell className="w-6 h-6 text-gray-400 mr-3" />
               <div className="text-left">
-                <div className="font-medium text-gray-900">Set Alerts</div>
-                <div className="text-sm text-gray-500">Configure notifications</div>
+                <div className="font-medium text-gray-500">Set Alerts</div>
+                <div className="text-sm text-gray-400">Not yet available</div>
               </div>
             </button>
             
-            <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <Settings className="w-6 h-6 text-gray-600 mr-3" />
+            <button 
+              disabled
+              className="flex items-center p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+            >
+              <Settings className="w-6 h-6 text-gray-400 mr-3" />
               <div className="text-left">
-                <div className="font-medium text-gray-900">System Settings</div>
-                <div className="text-sm text-gray-500">Update system info</div>
+                <div className="font-medium text-gray-500">System Settings</div>
+                <div className="text-sm text-gray-400">Not yet available</div>
               </div>
             </button>
             
@@ -459,7 +471,7 @@ export default function OperatorDashboard() {
               <MapPin className="w-6 h-6 text-green-600 mr-3" />
               <div className="text-left">
                 <div className="font-medium text-gray-900">Public View</div>
-                <div className="text-sm text-gray-500">See public page</div>
+                <div className="text-sm text-green-600">Available</div>
               </div>
             </Link>
           </div>
