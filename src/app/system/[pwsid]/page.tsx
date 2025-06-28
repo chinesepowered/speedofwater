@@ -52,17 +52,20 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
       );
     }
 
-    // Filter out invalid/incomplete records first
-    const validViolations = violations.filter(v => 
+    // Separate violations by data completeness and status
+    const standardViolations = violations.filter(v => 
       v.VIOLATION_CODE && v.CONTAMINANT_CODE && v.VIOLATION_STATUS
+    );
+    const enforcementActions = violations.filter(v => 
+      !v.VIOLATION_STATUS && v.ENFORCEMENT_ACTION_TYPE_CODE
     );
     
     // Use proper violation status logic:
     // Active = VIOLATION_STATUS is "Unaddressed" or "Addressed" 
-    const activeViolations = validViolations.filter(v => 
+    const activeViolations = standardViolations.filter(v => 
       ['Unaddressed', 'Addressed'].includes(v.VIOLATION_STATUS)
     );
-    const resolvedViolations = validViolations.filter(v => 
+    const resolvedViolations = standardViolations.filter(v => 
       ['Resolved', 'Archived'].includes(v.VIOLATION_STATUS)
     );
 
@@ -254,17 +257,44 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
             </div>
           )}
 
-          {/* No Violations */}
-          {validViolations.length === 0 && (
+          {/* Enforcement Actions */}
+          {enforcementActions.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <div className="flex items-center mb-6">
+                <AlertTriangle className="w-6 h-6 text-orange-600 mr-3" />
+                <h2 className="text-2xl font-bold text-gray-900">Enforcement Actions</h2>
+                <span className="ml-3 bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1 rounded-full">
+                  {enforcementActions.length}
+                </span>
+              </div>
+              <div className="space-y-4">
+                {enforcementActions.map((action, index) => (
+                  <div key={index} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="font-medium text-gray-700">Action Type:</span>
+                        <p className="text-gray-600 text-sm">{action.ENFORCEMENT_ACTION_TYPE_CODE || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">PWSID:</span>
+                        <p className="text-gray-600 text-sm">{action.PWSID}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-sm text-orange-700 bg-orange-100 p-2 rounded">
+                      <strong>Note:</strong> This is an enforcement action record. Detailed violation information may not be available for this type of record.
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Records */}
+          {standardViolations.length === 0 && enforcementActions.length === 0 && (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Valid Violations Found</h2>
-              <p className="text-gray-600">This water system has no valid recorded violations in the database.</p>
-              {violations.length > validViolations.length && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Note: {violations.length - validViolations.length} incomplete violation records were filtered out.
-                </p>
-              )}
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Violations Found</h2>
+              <p className="text-gray-600">This water system has no recorded violations or enforcement actions in the database.</p>
             </div>
           )}
         </div>
