@@ -93,21 +93,47 @@ export default function OperatorDashboard() {
     ['Resolved', 'Archived'].includes(v.VIOLATION_STATUS) && v.NON_COMPL_PER_END_DATE !== null
   );
   
-  // Mock trend data for charts
-  const complianceData = [
-    { month: 'Jan', score: 95, violations: 2 },
-    { month: 'Feb', score: 97, violations: 1 },
-    { month: 'Mar', score: 92, violations: 3 },
-    { month: 'Apr', score: 98, violations: 1 },
-    { month: 'May', score: 94, violations: 2 },
-    { month: 'Jun', score: 99, violations: 0 },
-  ];
+  // Generate real compliance data from violations
+  const generateComplianceData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    return months.map(month => {
+      // Use real violation count for this month (simplified for demo)
+      const monthViolations = violations.filter(v => {
+        if (!v.COMPL_PER_BEGIN_DATE) return false;
+        const date = new Date(v.COMPL_PER_BEGIN_DATE);
+        return date.getMonth() === months.indexOf(month);
+      }).length;
+      
+      const score = Math.max(100 - (monthViolations * 5), 0);
+      return { month, score, violations: monthViolations };
+    });
+  };
 
-  const violationTypes = [
-    { name: 'Monitoring', value: 45, color: '#ef4444' },
-    { name: 'Reporting', value: 30, color: '#f97316' },
-    { name: 'Treatment', value: 15, color: '#eab308' },
-    { name: 'Other', value: 10, color: '#6b7280' },
+  const complianceData = generateComplianceData();
+
+  // Generate real violation types from actual data
+  const generateViolationTypes = () => {
+    const types = violations.reduce((acc, violation) => {
+      // Categorize by violation category or use generic categories
+      let category = 'Other';
+      if (violation.VIOLATION_NAME?.toLowerCase().includes('monitor')) category = 'Monitoring';
+      else if (violation.VIOLATION_NAME?.toLowerCase().includes('report')) category = 'Reporting';
+      else if (violation.VIOLATION_NAME?.toLowerCase().includes('treatment')) category = 'Treatment';
+      
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const colors = ['#ef4444', '#f97316', '#eab308', '#6b7280'];
+    return Object.entries(types).map(([name, value], index) => ({
+      name,
+      value,
+      color: colors[index % colors.length]
+    }));
+  };
+
+  const violationTypes = violations.length > 0 ? generateViolationTypes() : [
+    { name: 'No Violations', value: 1, color: '#10b981' }
   ];
 
   if (loading) {

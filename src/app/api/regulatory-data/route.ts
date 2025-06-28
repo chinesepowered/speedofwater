@@ -26,32 +26,34 @@ export async function GET() {
     ]).toArray();
     const totalPopulation = populationResult[0]?.total || 0;
 
-    // 1. Violations by Type (with proper lookups)
+    // 1. Violations by Type (optimized to prevent memory issues)
     const violationsByType = await violationsCollection.aggregate([
-      {
-        $lookup: {
-          from: 'ref_code_values',
-          localField: 'VIOLATION_CODE',
-          foreignField: 'CODE_VALUE',
-          as: 'violationDetails'
-        }
-      },
-      {
-        $unwind: { path: "$violationDetails", preserveNullAndEmptyArrays: true }
-      },
+      { $sample: { size: 10000 } }, // Sample to prevent memory issues
       {
         $group: { 
-          _id: '$violationDetails.CODE_DESCRIPTION', 
+          _id: '$VIOLATION_CATEGORY_CODE', 
           count: { $sum: 1 } 
         }
       },
       { $sort: { count: -1 } },
-      { $limit: 10 },
+      { $limit: 6 },
       {
         $project: {
-          type: { $ifNull: ['$_id', 'Unknown'] },
+          type: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$_id', 'MCL'] }, then: 'Max Contaminant Level' },
+                { case: { $eq: ['$_id', 'MR'] }, then: 'Monitoring & Reporting' },
+                { case: { $eq: ['$_id', 'TT'] }, then: 'Treatment Technique' },
+                { case: { $eq: ['$_id', 'MON'] }, then: 'Monitoring' },
+                { case: { $eq: ['$_id', 'RPT'] }, then: 'Reporting' },
+                { case: { $eq: ['$_id', 'MRDL'] }, then: 'Disinfectant Level' }
+              ],
+              default: { $ifNull: ['$_id', 'Other'] }
+            }
+          },
           count: 1,
-          percentage: { $round: [{ $multiply: [{ $divide: ['$count', totalViolations] }, 100] }, 1] }
+          percentage: { $round: [{ $multiply: [{ $divide: ['$count', 10000] }, 100] }, 1] }
         }
       }
     ]).toArray();
@@ -125,11 +127,37 @@ export async function GET() {
       }
     ]).toArray();
 
-    // Calculate compliance rate
-    const complianceRate = totalSystems > 0 ? Math.round(((totalSystems - (activeViolations / 10)) / totalSystems) * 100) : 100;
+    // Calculate real compliance rate based on systems with no active violations
+    const systemsWithActiveViolations = await violationsCollection.aggregate([
+      {
+        $match: {
+          $or: [
+            { VIOLATION_STATUS: { $in: ['Unaddressed', 'Addressed'] } },
+            { NON_COMPL_PER_END_DATE: null }
+          ]
+        }
+      },
+      { $group: { _id: '$PWSID' } },
+      { $count: 'count' }
+    ]).toArray();
     
-    // Calculate risk score (mock calculation based on active violations)
-    const riskScore = Math.min(Math.round((activeViolations / totalSystems) * 100), 100);
+    const nonCompliantSystems = systemsWithActiveViolations[0]?.count || 0;
+    const complianceRate = totalSystems > 0 ? Math.round(((totalSystems - nonCompliantSystems) / totalSystems) * 100) : 100;
+    
+    // Calculate real risk score based on health-based violations
+    const healthBasedViolations = await violationsCollection.countDocuments({
+      $and: [
+        {
+          $or: [
+            { VIOLATION_STATUS: { $in: ['Unaddressed', 'Addressed'] } },
+            { NON_COMPL_PER_END_DATE: null }
+          ]
+        },
+        { IS_HEALTH_BASED_IND: 'Y' }
+      ]
+    });
+    
+    const riskScore = activeViolations > 0 ? Math.min(Math.round((healthBasedViolations / activeViolations) * 100), 100) : 0;
 
     return NextResponse.json({
       totalSystems,
