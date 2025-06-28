@@ -22,9 +22,14 @@ export async function GET(request: NextRequest) {
     console.log(`[API DIAGNOSTIC for ${countyName}] Sample document found:`, JSON.stringify(sampleDoc, null, 2));
     // --- END DIAGNOSTIC STEP ---
 
-    // Find all PWSIDs for the given county and join with their names
+    // Find all PWSIDs for the given county, join with their names, and get violation counts
     const waterSystems = await db.collection('geographic_areas').aggregate([
-      { $match: { COUNTY_SERVED: { $regex: `^${countyName}$`, $options: 'i' } } },
+      { 
+        $match: { 
+          COUNTY_SERVED: { $regex: `^${countyName}$`, $options: 'i' },
+          PWSID: { $exists: true, $ne: null, $ne: '' } // Ensure valid PWSID
+        } 
+      },
       {
         $lookup: {
           from: 'pub_water_systems',
@@ -34,14 +39,56 @@ export async function GET(request: NextRequest) {
         }
       },
       {
-        $unwind: '$systemDetails'
+        $unwind: { path: '$systemDetails', preserveNullAndEmptyArrays: true }
       },
+      {
+        $lookup: {
+          from: 'violations_enforcement',
+          localField: 'PWSID',
+          foreignField: 'PWSID',
+          as: 'violations'
+        }
+      },
+      {
+        $addFields: {
+          // Count active violations using proper logic:
+          // Active = VIOLATION_STATUS is "Unaddressed" or "Addressed" 
+          // OR NON_COMPL_PER_END_DATE is null (unresolved)
+          activeViolations: {
+            $size: {
+              $filter: {
+                input: '$violations',
+                cond: {
+                  $or: [
+                    { $in: ['$$this.VIOLATION_STATUS', ['Unaddressed', 'Addressed']] },
+                    { 
+                      $and: [
+                        { $ne: ['$$this.VIOLATION_STATUS', 'Resolved'] },
+                        { $ne: ['$$this.VIOLATION_STATUS', 'Archived'] },
+                        { $eq: ['$$this.NON_COMPL_PER_END_DATE', null] }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          totalViolations: { $size: '$violations' }
+        }
+      },
+
       {
         $project: {
             _id: 0,
             PWSID: '$PWSID',
-            PWS_NAME: '$systemDetails.PWS_NAME'
+            PWS_NAME: { $ifNull: ['$systemDetails.PWS_NAME', 'Unknown System'] },
+            POPULATION_SERVED_COUNT: { $ifNull: ['$systemDetails.POPULATION_SERVED_COUNT', 0] },
+            activeViolations: 1,
+            totalViolations: 1
         }
+      },
+      {
+        $sort: { activeViolations: -1, PWS_NAME: 1 }
       }
     ]).toArray();
 

@@ -54,12 +54,18 @@ const Map = () => {
           const popup = L.popup()
             .setLatLng(e.latlng)
             .setContent(`
-              <div class="p-3">
-                <div class="font-bold text-lg mb-2">${countyName} County</div>
-                <div class="flex items-center">
-                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                  <span class="text-sm text-gray-600">Loading water systems...</span>
+              <div style="padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <div style="font-weight: bold; font-size: 18px; margin-bottom: 8px; color: #111827;">${countyName} County</div>
+                <div style="display: flex; align-items: center;">
+                  <div style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></div>
+                  <span style="font-size: 14px; color: #6b7280;">Loading water systems...</span>
                 </div>
+                <style>
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                </style>
               </div>
             `)
             .openOn(e.target._map);
@@ -78,33 +84,62 @@ const Map = () => {
             }
 
             let popupContent = `
-              <div class="p-3 max-w-xs">
-                <div class="font-bold text-lg mb-3 text-gray-900">${countyName} County</div>
+              <div style="min-width: 300px; max-width: 400px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <div style="font-weight: bold; font-size: 18px; margin-bottom: 12px; color: #111827; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">${countyName} County</div>
             `;
             
             if (waterSystems && waterSystems.length > 0) {
+              const totalActiveViolations = waterSystems.reduce((sum: number, system: any) => sum + (system.activeViolations || 0), 0);
+              
               popupContent += `
-                <div class="text-sm text-gray-600 mb-2">${waterSystems.length} water system${waterSystems.length !== 1 ? 's' : ''} found:</div>
-                <div class="max-h-40 overflow-y-auto">
+                <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">
+                  ${waterSystems.length} water system${waterSystems.length !== 1 ? 's' : ''} found
+                  ${totalActiveViolations > 0 ? ` • <span style="color: #dc2626; font-weight: 500;">${totalActiveViolations} active violation${totalActiveViolations !== 1 ? 's' : ''}</span>` : ' • <span style="color: #059669; font-weight: 500;">No active violations</span>'}
+                </div>
+                <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 4px;">
               `;
-              waterSystems.forEach((system: { PWSID: string; PWS_NAME: string; }) => {
+              waterSystems.forEach((system: { PWSID: string; PWS_NAME: string; activeViolations?: number; totalViolations?: number; POPULATION_SERVED_COUNT?: number; }) => {
+                const borderColor = (system.activeViolations && system.activeViolations > 0) ? '#dc2626' : '#3b82f6';
+                const bgColor = (system.activeViolations && system.activeViolations > 0) ? '#fef2f2' : '#f9fafb';
+                
                 popupContent += `
-                  <div class="mb-2 p-2 bg-gray-50 rounded border-l-4 border-blue-500">
+                  <div style="margin: 4px 0; padding: 8px; background: ${bgColor}; border-radius: 6px; border-left: 4px solid ${borderColor};">
                     <a href="/system/${system.PWSID}" 
-                       class="text-blue-600 hover:text-blue-800 font-medium text-sm block hover:underline"
-                       target="_blank">
+                       style="color: #2563eb; font-weight: 500; font-size: 14px; text-decoration: none; display: block;"
+                       target="_blank"
+                       onmouseover="this.style.color='#1d4ed8'; this.style.textDecoration='underline'"
+                       onmouseout="this.style.color='#2563eb'; this.style.textDecoration='none'">
                       ${system.PWS_NAME}
                     </a>
-                    <div class="text-xs text-gray-500 mt-1">PWSID: ${system.PWSID}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                      <div style="font-size: 12px; color: #6b7280;">PWSID: ${system.PWSID}</div>
+                      ${system.activeViolations !== undefined ? `
+                        <div style="font-size: 11px; padding: 2px 6px; border-radius: 12px; ${
+                          system.activeViolations > 0 
+                            ? 'background: #fee2e2; color: #991b1b;' 
+                            : 'background: #dcfce7; color: #166534;'
+                        }">
+                          ${system.activeViolations > 0 
+                            ? `${system.activeViolations} active` 
+                            : 'Compliant'
+                          }
+                        </div>
+                      ` : ''}
+                    </div>
+                    ${system.POPULATION_SERVED_COUNT ? `
+                      <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
+                        Serves: ${system.POPULATION_SERVED_COUNT.toLocaleString()} people
+                      </div>
+                    ` : ''}
                   </div>
                 `;
               });
               popupContent += '</div>';
             } else {
               popupContent += `
-                <div class="text-center py-4">
-                  <div class="text-gray-500 text-sm">No water systems found in this county.</div>
-                  <div class="text-xs text-gray-400 mt-1">Try searching by system name instead.</div>
+                <div style="text-align: center; padding: 16px; background: #fef3c7; border-radius: 8px; border: 1px solid #f59e0b;">
+                  <div style="color: #92400e; font-size: 14px; margin-bottom: 4px;">No water systems found in this county.</div>
+                  <div style="font-size: 12px; color: #a16207;">Try searching by system name instead.</div>
                 </div>
               `;
             }
@@ -112,10 +147,10 @@ const Map = () => {
             popup.setContent(popupContent);
           } catch (err) {
             popup.setContent(`
-              <div class="p-3">
-                <div class="font-bold text-lg mb-2 text-gray-900">${countyName} County</div>
-                <div class="text-red-600 text-sm">Could not load water system data.</div>
-                <div class="text-xs text-gray-500 mt-1">Please try again later.</div>
+              <div style="padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <div style="font-weight: bold; font-size: 18px; margin-bottom: 8px; color: #111827;">${countyName} County</div>
+                <div style="color: #dc2626; font-size: 14px; margin-bottom: 4px;">Could not load water system data.</div>
+                <div style="font-size: 12px; color: #6b7280;">Please try again later.</div>
               </div>
             `);
             console.error('Error loading water systems:', err);

@@ -41,7 +41,8 @@ interface Violation {
   VIOLATION_NAME: string;
   CONTAMINANT_NAME: string;
   COMPL_PER_BEGIN_DATE: string;
-  ENFORCEMENT_ACTION_TYPE_CODE: string;
+  NON_COMPL_PER_END_DATE: string | null;
+  VIOLATION_STATUS: string;
   SEVERITY_IND_CODE: string;
 }
 
@@ -83,8 +84,14 @@ export default function OperatorDashboard() {
     }
   };
 
-  const activeViolations = violations.filter(v => v.ENFORCEMENT_ACTION_TYPE_CODE !== 'C');
-  const resolvedViolations = violations.filter(v => v.ENFORCEMENT_ACTION_TYPE_CODE === 'C');
+  // Use proper violation status logic:
+  // Active = VIOLATION_STATUS is "Unaddressed" or "Addressed" OR NON_COMPL_PER_END_DATE is null (unresolved)
+  const activeViolations = violations.filter(v => 
+    ['Unaddressed', 'Addressed'].includes(v.VIOLATION_STATUS) || v.NON_COMPL_PER_END_DATE === null
+  );
+  const resolvedViolations = violations.filter(v => 
+    ['Resolved', 'Archived'].includes(v.VIOLATION_STATUS) && v.NON_COMPL_PER_END_DATE !== null
+  );
   
   // Mock trend data for charts
   const complianceData = [
