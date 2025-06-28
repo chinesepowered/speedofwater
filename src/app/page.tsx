@@ -151,19 +151,19 @@ export default function HomePage() {
                 transition={{ delay: 0.5 }}
                 className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
               >
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+                <div className="glass-card rounded-xl p-6 shadow-lg">
                   <div className="text-3xl font-bold text-blue-600">{stats.totalSystems.toLocaleString()}</div>
                   <div className="text-sm text-gray-600">Water Systems</div>
                 </div>
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+                <div className="glass-card rounded-xl p-6 shadow-lg">
                   <div className="text-3xl font-bold text-green-600">{stats.populationServed.toLocaleString()}</div>
                   <div className="text-sm text-gray-600">People Served</div>
                 </div>
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+                <div className="glass-card rounded-xl p-6 shadow-lg">
                   <div className="text-3xl font-bold text-red-600">{stats.activeViolations}</div>
                   <div className="text-sm text-gray-600">Active Violations</div>
                 </div>
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+                <div className="glass-card rounded-xl p-6 shadow-lg">
                   <div className="text-3xl font-bold text-purple-600">{stats.totalViolations.toLocaleString()}</div>
                   <div className="text-sm text-gray-600">Total Violations</div>
                 </div>
@@ -195,7 +195,7 @@ export default function HomePage() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className="glass-card rounded-2xl shadow-2xl overflow-hidden"
           >
             <div className="h-[600px] relative">
               <Map />
@@ -207,7 +207,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mt-8 bg-blue-50 rounded-xl p-6"
+            className="mt-8 glass-light rounded-xl p-6 border border-blue-200/50"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
               <div className="flex flex-col items-center">
