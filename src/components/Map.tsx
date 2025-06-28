@@ -23,9 +23,18 @@ const Map = ({ geoJsonData }: MapProps) => {
             .openOn(e.target._map);
           
           try {
-            const res = await fetch(`/api/water-systems-by-county?name=${countyName.toUpperCase()}`);
-            const { waterSystems } = await res.json();
-            
+            // First, try to find systems by county name
+            let res = await fetch(`/api/water-systems-by-county?name=${countyName.toUpperCase()}`);
+            let { waterSystems } = await res.json();
+
+            // If no systems are found, try searching by city name as a fallback
+            if (!waterSystems || waterSystems.length === 0) {
+              console.log(`[MAP LOG] No systems found for county "${countyName}". Trying city search...`);
+              res = await fetch(`/api/water-systems?q=${countyName.toUpperCase()}`);
+              const cityData = await res.json();
+              waterSystems = cityData.waterSystems.filter((s: any) => s.CITY_NAME === countyName.toUpperCase());
+            }
+
             let popupContent = `<b>${countyName} County</b>`;
             if (waterSystems && waterSystems.length > 0) {
               popupContent += '<ul class="list-disc pl-5 mt-2">';

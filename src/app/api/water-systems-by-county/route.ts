@@ -8,13 +8,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const countyName = searchParams.get('name');
 
+    console.log(`[API LOG] Received county search for: "${countyName}"`);
+
     if (!countyName) {
       return NextResponse.json({ error: 'County name is required' }, { status: 400 });
     }
 
+    // --- DIAGNOSTIC STEP ---
+    // Find ONE sample document to inspect its structure
+    const sampleDoc = await db.collection('geographic_areas').findOne({ 
+      COUNTY_SERVED: { $regex: countyName, $options: 'i' } 
+    });
+    console.log(`[API DIAGNOSTIC for ${countyName}] Sample document found:`, JSON.stringify(sampleDoc, null, 2));
+    // --- END DIAGNOSTIC STEP ---
+
     // Find all PWSIDs for the given county and join with their names
     const waterSystems = await db.collection('geographic_areas').aggregate([
-      { $match: { COUNTY_NAME: countyName.toUpperCase() } },
+      { $match: { COUNTY_SERVED: { $regex: `^${countyName}$`, $options: 'i' } } },
       {
         $lookup: {
           from: 'pub_water_systems',
