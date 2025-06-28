@@ -90,15 +90,17 @@ const Map = () => {
             
             if (waterSystems && waterSystems.length > 0) {
               const totalActiveViolations = waterSystems.reduce((sum: number, system: any) => sum + (system.activeViolations || 0), 0);
+              const totalEnforcementActions = waterSystems.reduce((sum: number, system: any) => sum + (system.enforcementActions || 0), 0);
               
               popupContent += `
                 <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">
                   ${waterSystems.length} water system${waterSystems.length !== 1 ? 's' : ''} found
                   ${totalActiveViolations > 0 ? ` • <span style="color: #dc2626; font-weight: 500;">${totalActiveViolations} active violation${totalActiveViolations !== 1 ? 's' : ''}</span>` : ' • <span style="color: #059669; font-weight: 500;">No active violations</span>'}
+                  ${totalEnforcementActions > 0 ? ` • <span style="color: #d97706; font-weight: 500;">${totalEnforcementActions} enforcement action${totalEnforcementActions !== 1 ? 's' : ''}</span>` : ''}
                 </div>
                 <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 4px;">
               `;
-              waterSystems.forEach((system: { PWSID: string; PWS_NAME: string; activeViolations?: number; totalViolations?: number; POPULATION_SERVED_COUNT?: number; }) => {
+              waterSystems.forEach((system: { PWSID: string; PWS_NAME: string; activeViolations?: number; enforcementActions?: number; totalViolations?: number; POPULATION_SERVED_COUNT?: number; }) => {
                 const borderColor = (system.activeViolations && system.activeViolations > 0) ? '#dc2626' : '#3b82f6';
                 const bgColor = (system.activeViolations && system.activeViolations > 0) ? '#fef2f2' : '#f9fafb';
                 
@@ -113,18 +115,25 @@ const Map = () => {
                     </a>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                       <div style="font-size: 12px; color: #6b7280;">PWSID: ${system.PWSID}</div>
-                      ${system.activeViolations !== undefined ? `
-                        <div style="font-size: 11px; padding: 2px 6px; border-radius: 12px; ${
-                          system.activeViolations > 0 
-                            ? 'background: #fee2e2; color: #991b1b;' 
-                            : 'background: #dcfce7; color: #166534;'
-                        }">
-                          ${system.activeViolations > 0 
-                            ? `${system.activeViolations} active` 
-                            : 'Compliant'
-                          }
-                        </div>
-                      ` : ''}
+                      <div style="display: flex; gap: 4px;">
+                        ${system.activeViolations !== undefined ? `
+                          <div style="font-size: 11px; padding: 2px 6px; border-radius: 12px; ${
+                            system.activeViolations > 0 
+                              ? 'background: #fee2e2; color: #991b1b;' 
+                              : 'background: #dcfce7; color: #166534;'
+                          }">
+                            ${system.activeViolations > 0 
+                              ? `${system.activeViolations} active` 
+                              : 'Compliant'
+                            }
+                          </div>
+                        ` : ''}
+                        ${system.enforcementActions && system.enforcementActions > 0 ? `
+                          <div style="font-size: 11px; padding: 2px 6px; border-radius: 12px; background: #fef3c7; color: #92400e;">
+                            ${system.enforcementActions} enforcement
+                          </div>
+                        ` : ''}
+                      </div>
                     </div>
                     ${system.POPULATION_SERVED_COUNT ? `
                       <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">

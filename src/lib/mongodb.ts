@@ -9,11 +9,13 @@ if (!uri) {
 }
 
 const options = {
-  maxPoolSize: 10, // Maintain up to 10 socket connections
-  serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-  socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-  maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-  connectTimeoutMS: 10000, // Give up initial connection after 10 seconds
+  maxPoolSize: 5, // Reduced pool size to avoid overwhelming the server
+  serverSelectionTimeoutMS: 8000, // Increased timeout for server selection
+  socketTimeoutMS: 30000, // Reduced socket timeout
+  maxIdleTimeMS: 60000, // Increased idle time to reduce reconnections
+  connectTimeoutMS: 15000, // Increased initial connection timeout
+  retryWrites: true, // Enable retry for write operations
+  retryReads: true, // Enable retry for read operations
 };
 
 let client: MongoClient;

@@ -14,14 +14,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'County name is required' }, { status: 400 });
     }
 
-
-
     // Find all PWSIDs for the given county, join with their names, and get violation counts
     const waterSystems = await db.collection('geographic_areas').aggregate([
       { 
         $match: { 
           COUNTY_SERVED: { $regex: `^${countyName}$`, $options: 'i' },
-          PWSID: { $exists: true, $ne: null, $ne: '' } // Ensure valid PWSID
+          PWSID: { $exists: true, $ne: null, $ne: '' }
         } 
       },
       {
@@ -45,23 +43,24 @@ export async function GET(request: NextRequest) {
       },
       {
         $addFields: {
-          // Count active violations using proper logic:
-          // Active = VIOLATION_STATUS is "Unaddressed" or "Addressed" 
-          // OR NON_COMPL_PER_END_DATE is null (unresolved)
           activeViolations: {
             $size: {
               $filter: {
                 input: '$violations',
                 cond: {
-                  $or: [
-                    { $in: ['$$this.VIOLATION_STATUS', ['Unaddressed', 'Addressed']] },
-                    { 
-                      $and: [
-                        { $ne: ['$$this.VIOLATION_STATUS', 'Resolved'] },
-                        { $ne: ['$$this.VIOLATION_STATUS', 'Archived'] },
-                        { $eq: ['$$this.NON_COMPL_PER_END_DATE', null] }
-                      ]
-                    }
+                  $in: ['$$this.VIOLATION_STATUS', ['Unaddressed', 'Addressed']]
+                }
+              }
+            }
+          },
+          enforcementActions: {
+            $size: {
+              $filter: {
+                input: '$violations',
+                cond: {
+                  $and: [
+                    { $eq: ['$$this.VIOLATION_STATUS', null] },
+                    { $ne: ['$$this.ENFORCEMENT_ACTION_TYPE_CODE', null] }
                   ]
                 }
               }
@@ -70,15 +69,15 @@ export async function GET(request: NextRequest) {
           totalViolations: { $size: '$violations' }
         }
       },
-
       {
         $project: {
-            _id: 0,
-            PWSID: '$PWSID',
-            PWS_NAME: { $ifNull: ['$systemDetails.PWS_NAME', 'Unknown System'] },
-            POPULATION_SERVED_COUNT: { $ifNull: ['$systemDetails.POPULATION_SERVED_COUNT', 0] },
-            activeViolations: 1,
-            totalViolations: 1
+          _id: 0,
+          PWSID: '$PWSID',
+          PWS_NAME: { $ifNull: ['$systemDetails.PWS_NAME', 'Unknown System'] },
+          POPULATION_SERVED_COUNT: { $ifNull: ['$systemDetails.POPULATION_SERVED_COUNT', 0] },
+          activeViolations: 1,
+          enforcementActions: 1,
+          totalViolations: 1
         }
       },
       {
