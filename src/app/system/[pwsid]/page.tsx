@@ -1,6 +1,6 @@
 import clientPromise from '@/lib/mongodb';
 import HealthEffects from '@/components/HealthEffects';
-import { ArrowLeft, MapPin, Users, AlertTriangle, CheckCircle, Calendar, Droplets } from 'lucide-react';
+import { ArrowLeft, MapPin, Users, AlertTriangle, CheckCircle, Calendar, Droplets, Info } from 'lucide-react';
 import Link from 'next/link';
 
 async function getWaterSystem(pwsid: string) {
@@ -14,14 +14,108 @@ async function getViolations(pwsid: string) {
   const client = await clientPromise;
   const db = client.db('speedofwater');
   
-  // Much faster query - get basic violations first, skip expensive lookups for now
-  const violations = await db.collection('violations_enforcement').find(
-    { PWSID: pwsid },
-    { 
-      sort: { NON_COMPL_PER_BEGIN_DATE: -1 },
-      limit: 50 // Reduced limit for faster loading
+  // Group violations by VIOLATION_ID to avoid showing duplicate violations with multiple enforcement actions
+  const violations = await db.collection('violations_enforcement').aggregate([
+    { $match: { PWSID: pwsid } },
+    { $sort: { NON_COMPL_PER_BEGIN_DATE: -1 } },
+    {
+      $group: {
+        _id: {
+          violation_id: '$VIOLATION_ID',
+          violation_code: '$VIOLATION_CODE',
+          contaminant_code: '$CONTAMINANT_CODE',
+          begin_date: '$COMPL_PER_BEGIN_DATE',
+          end_date: '$COMPL_PER_END_DATE'
+        },
+        // Keep the first (most recent) record for display
+        violation: { $first: '$$ROOT' },
+        // Count enforcement actions for this violation
+        enforcementCount: { $sum: 1 },
+        // Collect all enforcement IDs
+        enforcementIds: { $push: '$ENFORCEMENT_ID' }
+      }
+    },
+    { $sort: { 'violation.NON_COMPL_PER_BEGIN_DATE': -1 } },
+    { $limit: 50 },
+    {
+      $lookup: {
+        from: 'ref_code_values',
+        let: { 
+          violationCode: { 
+            $convert: {
+              input: '$violation.VIOLATION_CODE',
+              to: 'int',
+              onError: null,
+              onNull: null
+            }
+          }
+        },
+        pipeline: [
+          { 
+            $match: { 
+              $expr: { 
+                $and: [
+                  { $ne: ['$$violationCode', null] },
+                  { $eq: ['$VALUE_CODE', '$$violationCode'] },
+                  { $eq: ['$VALUE_TYPE', 'VIOLATION_CODE'] }
+                ]
+              }
+            }
+          }
+        ],
+        as: 'violationDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'ref_code_values',
+        let: { 
+          contaminantCode: { 
+            $convert: {
+              input: '$violation.CONTAMINANT_CODE',
+              to: 'int',
+              onError: null,
+              onNull: null
+            }
+          }
+        },
+        pipeline: [
+          { 
+            $match: { 
+              $expr: { 
+                $and: [
+                  { $ne: ['$$contaminantCode', null] },
+                  { $eq: ['$VALUE_CODE', '$$contaminantCode'] },
+                  { $eq: ['$VALUE_TYPE', 'CONTAMINANT_CODE'] }
+                ]
+              }
+            }
+          }
+        ],
+        as: 'contaminantDetails'
+      }
+    },
+    {
+      $addFields: {
+        'violation.VIOLATION_NAME': { 
+          $ifNull: [
+            { $arrayElemAt: ['$violationDetails.VALUE_DESCRIPTION', 0] },
+            'Unknown violation type'
+          ]
+        },
+        'violation.CONTAMINANT_NAME': { 
+          $ifNull: [
+            { $arrayElemAt: ['$contaminantDetails.VALUE_DESCRIPTION', 0] },
+            'Unknown contaminant'
+          ]
+        },
+        'violation.ENFORCEMENT_COUNT': '$enforcementCount'
+      }
+    },
+    {
+      $replaceRoot: { newRoot: '$violation' }
     }
-  ).toArray();
+  ]).toArray();
   
   return violations;
 }
@@ -197,24 +291,59 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
                   <div key={index} className="border border-red-200 rounded-lg p-6 bg-red-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Violation Code</h3>
-                        <p className="text-gray-700">{violation.VIOLATION_CODE || 'Not specified'}</p>
+                        <h3 className="font-semibold text-gray-900 mb-2">Violation Type</h3>
+                        <p className="text-gray-700 font-medium">{violation.VIOLATION_NAME || 'Unknown violation type'}</p>
+                        {violation.VIOLATION_CODE && (
+                          <p className="text-sm text-gray-500 mt-1">Code: {violation.VIOLATION_CODE}</p>
+                        )}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Contaminant Code</h3>
-                        <p className="text-gray-700">{violation.CONTAMINANT_CODE || 'Not specified'}</p>
+                        <h3 className="font-semibold text-gray-900 mb-2">Contaminant</h3>
+                        <p className="text-gray-700 font-medium">{violation.CONTAMINANT_NAME || 'Unknown contaminant'}</p>
+                        {violation.CONTAMINANT_CODE && (
+                          <p className="text-sm text-gray-500 mt-1">Code: {violation.CONTAMINANT_CODE}</p>
+                        )}
                       </div>
                     </div>
-                    {violation.COMPL_PER_BEGIN_DATE && (
-                      <div className="mb-4">
-                        <span className="font-medium text-gray-700">Compliance Period:</span>
-                        <span className="ml-2 text-gray-600">
-                          {new Date(violation.COMPL_PER_BEGIN_DATE).toLocaleDateString()}
-                        </span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {violation.COMPL_PER_BEGIN_DATE && (
+                        <div>
+                          <span className="font-medium text-gray-700">Compliance Period:</span>
+                          <span className="ml-2 text-gray-600">
+                            {new Date(violation.COMPL_PER_BEGIN_DATE).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                      {violation.ENFORCEMENT_COUNT && violation.ENFORCEMENT_COUNT > 1 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Enforcement Actions:</span>
+                          <span className="ml-2 text-gray-600">
+                            {violation.ENFORCEMENT_COUNT} actions taken
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Violation Type Explanation */}
+                    {violation.VIOLATION_NAME && (
+                      <div className="mb-4 p-3 bg-red-100 rounded-lg">
+                        <div className="text-sm text-red-800">
+                          <strong>What this means:</strong>
+                          {violation.VIOLATION_NAME.includes('Monitoring') || violation.VIOLATION_NAME.includes('Reporting') ? 
+                            ' This system failed to conduct required water testing or submit monitoring reports on time.' :
+                           violation.VIOLATION_NAME.includes('Maximum Contaminant Level') || violation.VIOLATION_NAME.includes('MCL') ?
+                            ' This system exceeded the maximum allowed level of a contaminant in drinking water.' :
+                           violation.VIOLATION_NAME.includes('Treatment Technique') ?
+                            ' This system failed to properly treat water using EPA-required methods.' :
+                           violation.VIOLATION_NAME.includes('Public Notification') ?
+                            ' This system failed to properly notify the public about water quality issues.' :
+                           ' This represents a violation of drinking water safety regulations.'}
+                        </div>
                       </div>
                     )}
-                    {violation.CONTAMINANT_CODE && (
-                      <HealthEffects contaminantName={violation.CONTAMINANT_CODE} />
+                    
+                    {violation.CONTAMINANT_NAME && (
+                      <HealthEffects contaminantName={violation.CONTAMINANT_NAME} />
                     )}
                   </div>
                 ))}
@@ -235,22 +364,62 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
               <div className="space-y-4">
                 {resolvedViolations.map((violation, index) => (
                   <div key={index} className="border border-green-200 rounded-lg p-4 bg-green-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <span className="font-medium text-gray-700">Violation Type:</span>
+                        <p className="text-gray-600 text-sm font-medium">{violation.VIOLATION_NAME || 'Unknown violation type'}</p>
+                        {violation.VIOLATION_CODE && (
+                          <p className="text-xs text-gray-500 mt-1">Code: {violation.VIOLATION_CODE}</p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Contaminant:</span>
+                        <p className="text-gray-600 text-sm font-medium">{violation.CONTAMINANT_NAME || 'Unknown contaminant'}</p>
+                        {violation.CONTAMINANT_CODE && (
+                          <p className="text-xs text-gray-500 mt-1">Code: {violation.CONTAMINANT_CODE}</p>
+                        )}
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <span className="font-medium text-gray-700">Violation Code:</span>
-                        <p className="text-gray-600 text-sm">{violation.VIOLATION_CODE || 'Not specified'}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Contaminant Code:</span>
-                        <p className="text-gray-600 text-sm">{violation.CONTAMINANT_CODE || 'Not specified'}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Date:</span>
+                        <span className="font-medium text-gray-700">Compliance Period:</span>
                         <p className="text-gray-600 text-sm">
                           {violation.COMPL_PER_BEGIN_DATE ? new Date(violation.COMPL_PER_BEGIN_DATE).toLocaleDateString() : 'Not specified'}
                         </p>
                       </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Status:</span>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {violation.VIOLATION_STATUS || 'Resolved'}
+                        </span>
+                      </div>
+                      {violation.ENFORCEMENT_COUNT && violation.ENFORCEMENT_COUNT > 1 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Enforcement:</span>
+                          <p className="text-gray-600 text-sm">
+                            {violation.ENFORCEMENT_COUNT} actions
+                          </p>
+                        </div>
+                      )}
                     </div>
+                    
+                    {/* Add explanation for resolved violations too */}
+                    {violation.VIOLATION_NAME && (
+                      <div className="mt-3 p-3 bg-green-100 rounded-lg">
+                        <div className="text-sm text-green-800">
+                          <strong>What this was:</strong>
+                          {violation.VIOLATION_NAME.includes('Monitoring') || violation.VIOLATION_NAME.includes('Reporting') ? 
+                            ' This system previously failed to conduct required water testing or submit monitoring reports, but has since corrected the issue.' :
+                           violation.VIOLATION_NAME.includes('Maximum Contaminant Level') || violation.VIOLATION_NAME.includes('MCL') ?
+                            ' This system previously exceeded the maximum allowed level of a contaminant, but has since resolved the issue.' :
+                           violation.VIOLATION_NAME.includes('Treatment Technique') ?
+                            ' This system previously failed to properly treat water using EPA-required methods, but has since corrected the treatment process.' :
+                           violation.VIOLATION_NAME.includes('Public Notification') ?
+                            ' This system previously failed to properly notify the public about water quality issues, but has since fulfilled notification requirements.' :
+                           ' This was a violation of drinking water safety regulations that has now been resolved.'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -273,15 +442,28 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <span className="font-medium text-gray-700">Action Type:</span>
-                        <p className="text-gray-600 text-sm">{action.ENFORCEMENT_ACTION_TYPE_CODE || 'Not specified'}</p>
+                        <p className="text-gray-600 text-sm font-medium">
+                          {action.ENFORCEMENT_ACTION_TYPE_CODE === 'SIA' ? 'Sanitary Inspection Action' :
+                           action.ENFORCEMENT_ACTION_TYPE_CODE === 'SIE' ? 'Sanitary Inspection Enforcement' :
+                           action.ENFORCEMENT_ACTION_TYPE_CODE === 'NOV' ? 'Notice of Violation' :
+                           action.ENFORCEMENT_ACTION_TYPE_CODE === 'AO' ? 'Administrative Order' :
+                           action.ENFORCEMENT_ACTION_TYPE_CODE || 'Not specified'}
+                        </p>
+                        {action.ENFORCEMENT_ACTION_TYPE_CODE && (
+                          <p className="text-xs text-gray-500 mt-1">Code: {action.ENFORCEMENT_ACTION_TYPE_CODE}</p>
+                        )}
                       </div>
                       <div>
-                        <span className="font-medium text-gray-700">PWSID:</span>
+                        <span className="font-medium text-gray-700">System ID:</span>
                         <p className="text-gray-600 text-sm">{action.PWSID}</p>
                       </div>
                     </div>
-                    <div className="mt-2 text-sm text-orange-700 bg-orange-100 p-2 rounded">
-                      <strong>Note:</strong> This is an enforcement action record. Detailed violation information may not be available for this type of record.
+                    <div className="mt-3 text-sm text-orange-700 bg-orange-100 p-3 rounded">
+                      <strong>What this means:</strong> This represents a regulatory action taken by authorities. 
+                      {action.ENFORCEMENT_ACTION_TYPE_CODE === 'SIA' && ' This was a routine sanitary inspection to ensure compliance with drinking water standards.'}
+                      {action.ENFORCEMENT_ACTION_TYPE_CODE === 'SIE' && ' This was enforcement action following a sanitary inspection that found issues.'}
+                      {action.ENFORCEMENT_ACTION_TYPE_CODE === 'NOV' && ' This was a formal notice that the system violated drinking water regulations.'}
+                      {action.ENFORCEMENT_ACTION_TYPE_CODE === 'AO' && ' This was an administrative order requiring specific corrective actions.'}
                     </div>
                   </div>
                 ))}
@@ -297,6 +479,61 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
               <p className="text-gray-600">This water system has no recorded violations or enforcement actions in the database.</p>
             </div>
           )}
+
+          {/* Understanding Violations - Glossary */}
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <div className="flex items-center mb-6">
+              <Info className="w-6 h-6 text-blue-600 mr-3" />
+              <h2 className="text-2xl font-bold text-gray-900">Understanding Water Quality Violations</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Common Violation Types</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <strong className="text-gray-700">MCL (Maximum Contaminant Level):</strong>
+                    <p className="text-gray-600">The highest level of a contaminant allowed in drinking water.</p>
+                  </div>
+                  <div>
+                    <strong className="text-gray-700">MR (Monitoring/Reporting):</strong>
+                    <p className="text-gray-600">Failure to conduct required testing or submit reports on time.</p>
+                  </div>
+                  <div>
+                    <strong className="text-gray-700">TT (Treatment Technique):</strong>
+                    <p className="text-gray-600">Failure to properly treat water using required methods.</p>
+                  </div>
+                  <div>
+                    <strong className="text-gray-700">PN (Public Notification):</strong>
+                    <p className="text-gray-600">Failure to properly notify the public about violations.</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Violation Status</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <strong className="text-green-700">Resolved:</strong>
+                    <p className="text-gray-600">The violation has been corrected and is no longer active.</p>
+                  </div>
+                  <div>
+                    <strong className="text-orange-700">Addressed:</strong>
+                    <p className="text-gray-600">Action has been taken, but the violation may still be under review.</p>
+                  </div>
+                  <div>
+                    <strong className="text-red-700">Unaddressed:</strong>
+                    <p className="text-gray-600">The violation is active and has not yet been corrected.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> This data comes from the EPA's Safe Drinking Water Information System (SDWIS). 
+                For the most current information or if you have concerns about your water quality, 
+                contact your water system directly or your state drinking water program.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
