@@ -163,13 +163,20 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
       ['Resolved', 'Archived'].includes(v.VIOLATION_STATUS)
     );
 
+    // Serialize the data to remove MongoDB ObjectIds and other non-serializable objects
+    const serializedSystem = JSON.parse(JSON.stringify(system));
+    const serializedViolations = JSON.parse(JSON.stringify(violations));
+    const serializedActiveViolations = JSON.parse(JSON.stringify(activeViolations));
+    const serializedResolvedViolations = JSON.parse(JSON.stringify(resolvedViolations));
+    const serializedEnforcementActions = JSON.parse(JSON.stringify(enforcementActions));
+
     return (
       <SystemPageClient
-        system={system}
-        violations={violations}
-        activeViolations={activeViolations}
-        resolvedViolations={resolvedViolations}
-        enforcementActions={enforcementActions}
+        system={serializedSystem}
+        violations={serializedViolations}
+        activeViolations={serializedActiveViolations}
+        resolvedViolations={serializedResolvedViolations}
+        enforcementActions={serializedEnforcementActions}
       />
     );
 

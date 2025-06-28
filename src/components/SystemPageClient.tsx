@@ -171,7 +171,7 @@ export default function SystemPageClient({
               </div>
               <div className="space-y-6">
                 {activeViolations.map((violation, index) => (
-                  <div key={index} className="border border-red-200 rounded-lg p-6 bg-red-50/50 glass-light">
+                  <div key={index} className="border border-red-200 rounded-lg p-6 bg-red-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <h3 className="font-semibold text-gray-900 mb-2">Violation Type</h3>
@@ -209,7 +209,7 @@ export default function SystemPageClient({
                     
                     {/* Violation Type Explanation */}
                     {violation.VIOLATION_NAME && (
-                      <div className="mb-4 p-3 bg-red-100/70 glass-light rounded-lg border border-red-200/50">
+                      <div className="mb-4 p-3 bg-red-100 rounded-lg">
                         <div className="text-sm text-red-800">
                           <strong>What this means:</strong>
                           {violation.VIOLATION_NAME.includes('Monitoring') || violation.VIOLATION_NAME.includes('Reporting') ? 
@@ -246,7 +246,7 @@ export default function SystemPageClient({
               </div>
               <div className="space-y-4">
                 {resolvedViolations.slice(0, 10).map((violation, index) => (
-                  <div key={index} className="border border-green-200 rounded-lg p-4 bg-green-50/50 glass-light">
+                  <div key={index} className="border border-green-200 rounded-lg p-4 bg-green-50">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <span className="font-medium text-gray-700">Violation:</span>
@@ -284,7 +284,7 @@ export default function SystemPageClient({
               </div>
               <div className="space-y-4">
                 {enforcementActions.slice(0, 5).map((action, index) => (
-                  <div key={index} className="border border-blue-200 rounded-lg p-4 bg-blue-50/50 glass-light">
+                  <div key={index} className="border border-blue-200 rounded-lg p-4 bg-blue-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <span className="font-medium text-gray-700">Action Type:</span>
