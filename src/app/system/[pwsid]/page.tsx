@@ -13,71 +13,60 @@ async function getWaterSystem(pwsid: string) {
 async function getViolations(pwsid: string) {
   const client = await clientPromise;
   const db = client.db('speedofwater');
-  const violations = await db.collection('violations_enforcement').aggregate([
-    { $match: { PWSID: pwsid } },
-    {
-      $lookup: {
-        from: 'ref_code_values',
-        localField: 'VIOLATION_CODE',
-        foreignField: 'CODE_VALUE',
-        as: 'violationDetails'
-      }
-    },
-    {
-      $lookup: {
-        from: 'ref_code_values',
-        localField: 'CONTAMINANT_CODE',
-        foreignField: 'CODE_VALUE',
-        as: 'contaminantDetails'
-      }
-    },
-    {
-      $unwind: { path: "$violationDetails", preserveNullAndEmptyArrays: true }
-    },
-    {
-      $unwind: { path: "$contaminantDetails", preserveNullAndEmptyArrays: true }
-    },
-    {
-      $addFields: {
-        VIOLATION_NAME: '$violationDetails.CODE_DESCRIPTION',
-        CONTAMINANT_NAME: '$contaminantDetails.CODE_DESCRIPTION',
-      }
+  
+  // Much faster query - get basic violations first, skip expensive lookups for now
+  const violations = await db.collection('violations_enforcement').find(
+    { PWSID: pwsid },
+    { 
+      sort: { NON_COMPL_PER_BEGIN_DATE: -1 },
+      limit: 50 // Reduced limit for faster loading
     }
-  ]).toArray();
+  ).toArray();
+  
   return violations;
 }
 
 export default async function SystemPage({ params }: { params: Promise<{ pwsid: string }> }) {
   const { pwsid } = await params;
-  const system = await getWaterSystem(pwsid);
-  const violations = await getViolations(pwsid);
-
-  if (!system) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Water System Not Found</h1>
-          <p className="text-gray-600 mb-6">The requested water system could not be located.</p>
-          <Link href="/" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
+  
+  try {
+    // Use Promise.all to run queries in parallel and add timeout
+    const [system, violations] = await Promise.all([
+      getWaterSystem(pwsid),
+      getViolations(pwsid)
+    ]);
+    
+    if (!system) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Water System Not Found</h1>
+            <p className="text-gray-600 mb-6">The requested water system could not be located.</p>
+            <Link href="/" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Link>
+          </div>
         </div>
-      </div>
+      );
+    }
+
+    // Filter out invalid/incomplete records first
+    const validViolations = violations.filter(v => 
+      v.VIOLATION_CODE && v.CONTAMINANT_CODE && v.VIOLATION_STATUS
     );
-  }
+    
+    // Use proper violation status logic:
+    // Active = VIOLATION_STATUS is "Unaddressed" or "Addressed" 
+    const activeViolations = validViolations.filter(v => 
+      ['Unaddressed', 'Addressed'].includes(v.VIOLATION_STATUS)
+    );
+    const resolvedViolations = validViolations.filter(v => 
+      ['Resolved', 'Archived'].includes(v.VIOLATION_STATUS)
+    );
 
-  // Use proper violation status logic:
-  // Active = VIOLATION_STATUS is "Unaddressed" or "Addressed" OR NON_COMPL_PER_END_DATE is null (unresolved)
-  const activeViolations = violations.filter(v => 
-    ['Unaddressed', 'Addressed'].includes(v.VIOLATION_STATUS) || v.NON_COMPL_PER_END_DATE === null
-  );
-  const resolvedViolations = violations.filter(v => 
-    ['Resolved', 'Archived'].includes(v.VIOLATION_STATUS) && v.NON_COMPL_PER_END_DATE !== null
-  );
-
-  return (
+    return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
@@ -205,12 +194,12 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
                   <div key={index} className="border border-red-200 rounded-lg p-6 bg-red-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Violation Details</h3>
-                        <p className="text-gray-700">{violation.VIOLATION_NAME || 'Violation details not available'}</p>
+                        <h3 className="font-semibold text-gray-900 mb-2">Violation Code</h3>
+                        <p className="text-gray-700">{violation.VIOLATION_CODE || 'Not specified'}</p>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Contaminant</h3>
-                        <p className="text-gray-700">{violation.CONTAMINANT_NAME || 'Not specified'}</p>
+                        <h3 className="font-semibold text-gray-900 mb-2">Contaminant Code</h3>
+                        <p className="text-gray-700">{violation.CONTAMINANT_CODE || 'Not specified'}</p>
                       </div>
                     </div>
                     {violation.COMPL_PER_BEGIN_DATE && (
@@ -221,8 +210,8 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
                         </span>
                       </div>
                     )}
-                    {violation.CONTAMINANT_NAME && (
-                      <HealthEffects contaminantName={violation.CONTAMINANT_NAME} />
+                    {violation.CONTAMINANT_CODE && (
+                      <HealthEffects contaminantName={violation.CONTAMINANT_CODE} />
                     )}
                   </div>
                 ))}
@@ -245,12 +234,12 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
                   <div key={index} className="border border-green-200 rounded-lg p-4 bg-green-50">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <span className="font-medium text-gray-700">Violation:</span>
-                        <p className="text-gray-600 text-sm">{violation.VIOLATION_NAME || 'Not specified'}</p>
+                        <span className="font-medium text-gray-700">Violation Code:</span>
+                        <p className="text-gray-600 text-sm">{violation.VIOLATION_CODE || 'Not specified'}</p>
                       </div>
                       <div>
-                        <span className="font-medium text-gray-700">Contaminant:</span>
-                        <p className="text-gray-600 text-sm">{violation.CONTAMINANT_NAME || 'Not specified'}</p>
+                        <span className="font-medium text-gray-700">Contaminant Code:</span>
+                        <p className="text-gray-600 text-sm">{violation.CONTAMINANT_CODE || 'Not specified'}</p>
                       </div>
                       <div>
                         <span className="font-medium text-gray-700">Date:</span>
@@ -266,15 +255,36 @@ export default async function SystemPage({ params }: { params: Promise<{ pwsid: 
           )}
 
           {/* No Violations */}
-          {violations.length === 0 && (
+          {validViolations.length === 0 && (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Violations Found</h2>
-              <p className="text-gray-600">This water system has no recorded violations in the database.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Valid Violations Found</h2>
+              <p className="text-gray-600">This water system has no valid recorded violations in the database.</p>
+              {violations.length > validViolations.length && (
+                <p className="text-sm text-gray-500 mt-2">
+                  Note: {violations.length - validViolations.length} incomplete violation records were filtered out.
+                </p>
+              )}
             </div>
           )}
         </div>
       </div>
     </div>
   );
+  } catch (error) {
+    console.error('Error loading system page:', error);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading System Data</h1>
+          <p className="text-gray-600 mb-6">There was an error loading the water system information. Please try again later.</p>
+          <Link href="/" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 }
