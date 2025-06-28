@@ -13,7 +13,8 @@ import {
   BarChart3,
   Eye,
   Building,
-  UserCheck
+  UserCheck,
+  Search as SearchIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -31,7 +32,6 @@ interface StatsData {
 
 export default function HomePage() {
   const [stats, setStats] = useState<StatsData | null>(null);
-  const [selectedView, setSelectedView] = useState<'public' | 'operator' | 'regulator'>('public');
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, -50]);
   const y2 = useTransform(scrollY, [0, 300], [0, -100]);
@@ -51,30 +51,24 @@ export default function HomePage() {
       .catch(err => console.error('Failed to fetch stats:', err));
   }, []);
 
-  const stakeholderViews = [
-    {
-      id: 'public' as const,
-      title: 'Public Portal',
-      description: 'Discover water quality information in your community',
-      icon: Eye,
-      color: 'blue',
-      features: ['Interactive county map', 'Water system search', 'Violation history', 'Health impact data']
-    },
+  const professionalPortals = [
     {
       id: 'operator' as const,
-      title: 'Operator Dashboard',
-      description: 'Manage and monitor your water system compliance',
+      title: 'Water System Operators',
+      description: 'Manage compliance, track violations, and monitor system performance',
       icon: Building,
       color: 'green',
-      features: ['System overview', 'Compliance tracking', 'Violation management', 'Reporting tools']
+      href: '/operator/dashboard',
+      features: ['System dashboard', 'Compliance tracking', 'Violation alerts', 'Performance metrics']
     },
     {
       id: 'regulator' as const,
-      title: 'Regulator Analytics',
-      description: 'Comprehensive oversight and regulatory insights',
+      title: 'State Regulators',
+      description: 'Statewide oversight, analytics, and regulatory compliance monitoring',
       icon: UserCheck,
       color: 'purple',
-      features: ['Statewide analytics', 'Violation trends', 'Compliance metrics', 'Risk assessment']
+      href: '/regulator/dashboard',
+      features: ['Statewide analytics', 'Risk assessment', 'Compliance trends', 'Enforcement tracking']
     }
   ];
 
@@ -123,10 +117,31 @@ export default function HomePage() {
               Dashboard
             </h1>
 
-            <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Empowering communities, operators, and regulators with transparent, 
-              accessible water quality data across Georgia
+            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
+              Find water quality information for your community. Search by county, city, or water system name to discover compliance status and safety data.
             </p>
+
+            {/* Primary CTA - Search */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mb-12"
+            >
+              <div className="max-w-2xl mx-auto mb-6">
+                <Search />
+              </div>
+              <p className="text-gray-600 mb-8">
+                Or explore by clicking counties on the interactive map below
+              </p>
+              <Link
+                href="#map"
+                className="inline-flex items-center px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-lg font-medium shadow-lg hover:shadow-xl"
+              >
+                <MapPin className="w-5 h-5 mr-2" />
+                Explore Interactive Map
+              </Link>
+            </motion.div>
 
             {/* Live Stats */}
             {stats && (
@@ -134,7 +149,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 max-w-4xl mx-auto"
+                className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
               >
                 <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
                   <div className="text-3xl font-bold text-blue-600">{stats.totalSystems.toLocaleString()}</div>
@@ -158,93 +173,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stakeholder Selection */}
-      <section className="py-20 bg-white/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Choose Your Portal
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Tailored experiences for different stakeholders in Georgia's water quality ecosystem
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {stakeholderViews.map((view, index) => {
-              const Icon = view.icon;
-              const isSelected = selectedView === view.id;
-              
-              return (
-                <motion.div
-                  key={view.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  className={`relative p-8 rounded-2xl shadow-xl cursor-pointer transition-all duration-300 ${
-                    isSelected 
-                      ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white' 
-                      : 'bg-white hover:shadow-2xl'
-                  }`}
-                  onClick={() => setSelectedView(view.id)}
-                >
-                  <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 ${
-                    isSelected ? 'bg-white/20' : 'bg-blue-100'
-                  }`}>
-                    <Icon className={`w-8 h-8 ${isSelected ? 'text-white' : 'text-blue-600'}`} />
-                  </div>
-                  
-                  <h3 className={`text-2xl font-bold mb-4 ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                    {view.title}
-                  </h3>
-                  
-                  <p className={`text-lg mb-6 ${isSelected ? 'text-white/90' : 'text-gray-600'}`}>
-                    {view.description}
-                  </p>
-
-                  <ul className="space-y-2">
-                    {view.features.map((feature, i) => (
-                      <li key={i} className={`flex items-center ${isSelected ? 'text-white/90' : 'text-gray-600'}`}>
-                        <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="mt-8">
-                    <Link
-                      href={view.id === 'public' ? '#map' : `/${view.id}/dashboard`}
-                      className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-white text-blue-600 hover:bg-gray-100'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      Enter Portal
-                      <motion.div
-                        whileHover={{ x: 5 }}
-                        className="ml-2"
-                      >
-                        →
-                      </motion.div>
-                    </Link>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Map Section */}
-      <section id="map" className="py-20">
+      {/* Interactive Map Section - Now Primary */}
+      <section id="map" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -260,16 +190,6 @@ export default function HomePage() {
             </p>
           </motion.div>
 
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-8"
-          >
-            <Search />
-          </motion.div>
-
           {/* Map Container */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -281,10 +201,42 @@ export default function HomePage() {
               <Map />
             </div>
           </motion.div>
+
+          {/* Usage Instructions */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-8 bg-blue-50 rounded-xl p-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-3">
+                  <span className="text-white font-bold">1</span>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Click a County</h3>
+                <p className="text-gray-600 text-sm">Select any county on the map to see water systems in that area</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-3">
+                  <span className="text-white font-bold">2</span>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Choose a System</h3>
+                <p className="text-gray-600 text-sm">Browse water systems and click to view detailed information</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-3">
+                  <span className="text-white font-bold">3</span>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">View Details</h3>
+                <p className="text-gray-600 text-sm">See compliance status, violations, and health information</p>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* About Section */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -293,11 +245,12 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Powerful Features
+            <h2 className="text-4xl font-bold text-white mb-6">
+              Transparent Water Quality Data
             </h2>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto">
-              Advanced tools and insights to ensure safe drinking water for all Georgians
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto mb-12">
+              This dashboard provides easy access to official EPA data about Georgia's public water systems. 
+              Our mission is to make water quality information transparent and accessible to all Georgians.
             </p>
           </motion.div>
 
@@ -305,23 +258,23 @@ export default function HomePage() {
             {[
               {
                 icon: Shield,
-                title: 'Real-time Monitoring',
-                description: 'Live updates on water quality violations and compliance status'
+                title: 'Official EPA Data',
+                description: 'All information comes directly from EPA Safe Drinking Water Act databases'
               },
               {
                 icon: BarChart3,
-                title: 'Advanced Analytics',
-                description: 'Comprehensive data visualization and trend analysis'
+                title: 'Easy to Understand',
+                description: 'Complex regulatory data translated into clear, actionable information'
               },
               {
                 icon: MapPin,
-                title: 'Geographic Insights',
-                description: 'Interactive maps showing water systems across Georgia'
+                title: 'Location-Based',
+                description: 'Find water quality information specific to your community'
               },
               {
                 icon: TrendingUp,
-                title: 'Predictive Intelligence',
-                description: 'AI-powered insights for proactive water quality management'
+                title: 'Always Updated',
+                description: 'Regular updates ensure you have the most current information available'
               }
             ].map((feature, index) => {
               const Icon = feature.icon;
@@ -347,6 +300,77 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Professional Access Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Professional Access
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Specialized dashboards for water system operators and state regulators
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {professionalPortals.map((portal, index) => {
+              const Icon = portal.icon;
+              
+              return (
+                <motion.div
+                  key={portal.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300"
+                >
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
+                    <Icon className="w-8 h-8 text-blue-600" />
+                  </div>
+                  
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                    {portal.title}
+                  </h3>
+                  
+                  <p className="text-lg text-gray-600 mb-6">
+                    {portal.description}
+                  </p>
+
+                  <ul className="space-y-2 mb-8">
+                    {portal.features.map((feature, i) => (
+                      <li key={i} className="flex items-center text-gray-600">
+                        <CheckCircle className="w-4 h-4 mr-2 text-green-600 flex-shrink-0" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    href={portal.href}
+                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Access Dashboard
+                    <motion.div
+                      whileHover={{ x: 5 }}
+                      className="ml-2"
+                    >
+                      →
+                    </motion.div>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -356,10 +380,10 @@ export default function HomePage() {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Ready to Explore Georgia's Water Quality?
+              Stay Informed About Your Water Quality
             </h2>
             <p className="text-xl text-gray-600 mb-8">
-              Join thousands of Georgians staying informed about their water quality
+              Knowledge is power when it comes to water safety. Start exploring your community's water quality data today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -367,14 +391,14 @@ export default function HomePage() {
                 className="inline-flex items-center px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium"
               >
                 <MapPin className="w-5 h-5 mr-2" />
-                Explore the Map
+                Start Exploring
               </Link>
               <Link
-                href="/operator/dashboard"
+                href="/system/GA1310022"
                 className="inline-flex items-center px-8 py-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-lg font-medium"
               >
-                <Building className="w-5 h-5 mr-2" />
-                Operator Login
+                <Eye className="w-5 h-5 mr-2" />
+                View Example System
               </Link>
             </div>
           </motion.div>
@@ -382,4 +406,4 @@ export default function HomePage() {
       </section>
     </div>
   );
-} 
+}
