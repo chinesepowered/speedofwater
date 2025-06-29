@@ -148,12 +148,7 @@ export function LeadTestingDialog({
                     </select>
                   </div>
 
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> This is a demo feature. In a real implementation, 
-                      this would connect to your state health department's lead testing program.
-                    </p>
-                  </div>
+
 
                   <div className="flex space-x-3 pt-4">
                     <button
@@ -332,12 +327,7 @@ export function AlertSetupDialog({
                     </div>
                   </div>
 
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      <strong>Note:</strong> This is a demo feature. In a real implementation, 
-                      you would receive actual notifications about your water system.
-                    </p>
-                  </div>
+
 
                   <div className="flex space-x-3 pt-4">
                     <button
